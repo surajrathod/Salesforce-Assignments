@@ -1,0 +1,67 @@
+//Trigger that call class//
+
+trigger AccountIsGold on Opportunity (after insert,after update) {
+    
+    HandlerAccountIsGold.AccountIsGold(Trigger.new);
+    
+}
+//Handler Class//
+public class HandlerAccountIsGold {
+    public static void AccountIsGold(List<Opportunity> opportunityList){
+        List<Account> acctsisgold = new List<Account>();
+        
+        for(Opportunity opps: opportunityList){
+            if(opps.Amount>20000 && opps.AccountId !=null){
+                acctsisgold.add([Select Id,is_gold__c from Account where ID=:opps.AccountId]);
+            }
+        }
+        for(Account acct:acctsisgold){
+            acct.is_gold__c=true;
+        }
+        
+        if(acctsisgold.size()>=1){
+          update acctsisgold;  
+        }
+        
+    }
+}
+
+//Test Class//
+
+@isTest
+public class TestAccountIsGold {
+    @TestSetup static void setAccount(){
+        Account ac=new Account(Name='handlerGold11');
+        insert ac;
+        
+    }
+    public static testMethod void AddOpportunity(){
+        Account acc=[select Id, Name from Account limit 1];
+        Opportunity opp=new Opportunity(Amount=200000,Name='asdfsdf',CloseDate=date.today(),AccountId=acc.Id,StageName='Prospecting');
+        insert opp;
+        
+        
+        Test.startTest();
+        DataBase.SaveResult sr=Database.insert(opp,false);
+        Test.stopTest();
+        
+        Account updated=[Select Name,is_gold__c from Account where Name='handlerGold11'];
+        System.assertEquals(true, updated.is_gold__c);
+    }
+    
+    public static testMethod void AccountisNotGold(){
+         Account acc=[select Id, Name from Account limit 1];
+        Opportunity opp=new Opportunity(Amount=200,Name='dontUpdateAccounttoGold',CloseDate=date.today(),AccountId=acc.Id,StageName='Prospecting');
+        insert opp;
+        
+        
+        Test.startTest();
+        DataBase.SaveResult sr=Database.insert(opp,false);
+        Test.stopTest();
+        
+        Account updated=[Select Name,is_gold__c from Account where Name='handlerGold11'];
+        System.assertEquals(false, updated.is_gold__c);
+
+    }
+    
+}

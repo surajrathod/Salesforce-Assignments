@@ -1,0 +1,62 @@
+//Trigger//
+trigger UpdateProfile on Account (after update,after insert) {
+
+        HandlerUpdateProfile.UpdateProfile(Trigger.new);
+   
+}
+
+//Handler Class//
+
+public class HandlerUpdateProfile {
+
+    public static void UpdateProfile(List<Account> accountList){
+      
+    List<Contact> RelatedContacts=[SELECT Profile__c,FirstName,LastName FROM Contact WHERE AccountId IN :Trigger.new];
+        List<Contact> updatedContact=new List<Contact>();
+        for(Account acct:accountList){
+            if(acct.Website!=null){
+                for(Contact ct:RelatedContacts){
+                    ct.Profile__c=acct.Website+'/'+ct.FirstName.left(1)+ ct.LastName;
+                    updatedContact.add(ct);
+                }           
+            }
+        }
+        if(updatedContact.size()>=1){
+            update updatedContact;   
+        }
+        
+    }
+}
+//Test class//
+@isTest
+public class TestUpdateProfile {
+    @TestSetup static void HandlerProfileUpdate(){
+        Account ac=new Account(Name='handlerProfileUpdate43');
+        insert ac;
+        Contact ct=new Contact(FirstName='assomething',LastName='asdupdate',AccountId=ac.ID);
+        insert ct;     
+    }
+    public static testMethod void UpdateProfile(){
+        Account ac=[Select Name,Id,Website from Account where Name='handlerProfileUpdate43' limit 1];
+        Contact ct=[Select FirstName, LastName,Profile__c from Contact where AccountId=:ac.Id limit 1];
+        
+        ac.Website='www.updatedwebsite.com';
+        Test.startTest();
+        update ac;
+        
+        Test.stopTest();
+        
+        Contact ctss=[Select FirstName, LastName,Profile__c from Contact where AccountId=:ac.Id limit 1];
+        String profile=ac.Website+'/'+ctss.FirstName.left(1)+ ctss.LastName;
+        System.assertEquals(profile, ctss.Profile__c);
+        
+        
+    }
+    
+    public static testMethod void NotUpdateProfile(){
+        Account ac=[Select Name,Id,Website from Account where Name='handlerProfileUpdate43' limit 1];
+        Contact ct=[Select FirstName, LastName,Profile__c from Contact where AccountId=:ac.Id limit 1];
+        
+        System.assertEquals(null, ct.Profile__c);
+    }
+}
