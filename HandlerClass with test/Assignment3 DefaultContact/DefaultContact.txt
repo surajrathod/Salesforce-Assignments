@@ -1,0 +1,55 @@
+trigger OnlyDefaultContactCreate on Account (after insert) {
+	HandlerDefaultContact.newContactCreate(trigger.new);
+
+}
+
+trigger OnlyDefaultContactUpdate on Contact (after insert,after delete,after update) {
+   HandlerDefaultContact.UpdateAccount(Trigger.new);
+}
+
+//ClassHandlerDefaultContact//
+public class HandlerDefaultContact {
+    
+    public static void newContactCreate(List<Account> accList){
+        List<Contact> conList=new List<Contact>();
+        for(Account AccountList:accList){
+            conList.add(new Contact(LastName='Default',FirstName='Info',Email='info@websitedomain.tld',AccountId=AccountList.Id));
+        }
+        if(conList.size()>0){
+             insert conList; 
+        }
+      
+    }
+
+    public static void UpdateAccount(List<Contact> conList){
+        Set<Id> accountIds=new Set<Id>();
+        for(Contact con: conList){
+            accountIds.add(con.AccountId);
+        }
+        List<Account> updateAccount= new List<Account>();
+        for(AggregateResult ar : [select count(id) , AccountId from Contact where AccountId IN :accountIds group by AccountId having count(id)  >1 ]){
+            updateAccount.add(new Account(Id = (Id)ar.get('AccountId'), Only_Default_Contact__c=false));
+        }
+        if(updateAccount.size()>0){
+            update updateAccount;
+        }
+    }
+}
+
+//TestDefaultContact//
+@isTest
+public class TestDefaultContact {
+    @TestSetup public static void Setup(){
+        Account acct=new Account(Name='CreateDefaultContact');
+        insert acct;
+    }
+    @isTest public static void DefaultContactCreate(){
+        Account acct=[Select Id, Name from Account where Name='CreateDefaultContact' limit 1];
+        Contact con=[Select Id,LastName from Contact where AccountId=:acct.Id];
+        if(con.LastName=='Default'){
+            System.assert(true);
+        }else{
+            System.assert(false);
+        }
+    }
+}
