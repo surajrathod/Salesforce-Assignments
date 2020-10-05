@@ -1,4 +1,4 @@
-trigger TaskComplete on Task (after insert,after update) {
+trigger TaskComplete on Task (after insert,after update,before delete) {
     List<Task> taskList;
         
         List<Account> accountToUpdateIncrement=new List<Account>();
@@ -50,6 +50,20 @@ trigger TaskComplete on Task (after insert,after update) {
             
         }
         
+    }else{
+         if (Trigger.isDelete){
+            System.debug('From Delete');
+            taskList=Trigger.old;
+            for(Task task:taskList){
+                if(task.Status == 'Completed'){
+                    accountToUpdateDecrement.add([Select Id, Number_of_Complete_Task__c from Account where Id=:task.AccountId]);
+               		System.debug('from delete complete');
+                }
+            }
+            for(Account UpdateTaskCompleted:accountToUpdateDecrement){
+                UpdateTaskCompleted.Number_of_Complete_Task__c--;    
+            }
+        }
     }
     System.debug(accountToUpdateIncrement);
         System.debug(accountToUpdateDecrement);
